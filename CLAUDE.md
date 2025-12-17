@@ -10,11 +10,12 @@ This is a deep learning research project for implementing image classification m
 
 ```
 deeplearning/
-├── CLAUDE.md                      # This file
-├── prompt.md                      # Original assignment requirements
-├── task1_cats_dogs.ipynb          # Task 1: Cats vs Dogs classification
-├── task2_chihuahua_muffin.ipynb   # Task 2: Chihuahua vs Muffin classification
-└── task3_fashion_mnist.ipynb      # Task 3: Fashion MNIST classification
+├── CLAUDE.md                        # This file
+├── prompt.md                        # Original assignment requirements
+├── task1_cats_dogs.ipynb            # Task 1: Cats vs Dogs classification
+├── task2_chihuahua_muffin.ipynb     # Task 2: Chihuahua vs Muffin classification
+├── task3_fashion_mnist.ipynb        # Task 3: Fashion MNIST (Train 2%: Val 49%: Test 49%)
+└── task3_fashion_mnist_v2.ipynb     # Task 3 V2: Fashion MNIST (Train 24.5%: Val 0.5%: Test 50%)
 ```
 
 ## Environment
@@ -48,20 +49,39 @@ with autocast('cuda', enabled=USE_AMP):
 - **Dataset**: Kaggle cats-and-dogs-image-classification (128x128 RGB)
 - **Validation**: Repeated holdout 5x (train:validation = 3:2)
 - **Metrics**: Accuracy, F1 Score (Micro), F1 Score (Macro)
-- **Models**: LeNet-5, VGGNet, ResNetCNN, SEResNet
+- **Models**: LeNet-5, VGGNet, ResNetCNN, SEResNet, ConvNeXt-Tiny
 
 ### Task 2: Chihuahua vs Muffin Classification (`task2_chihuahua_muffin.ipynb`)
 - **Dataset**: Kaggle muffin-vs-chihuahua-image-classification (128x128 RGB)
 - **Validation**: StratifiedKFold 5-fold cross-validation
 - **Metrics**: Accuracy, F1 Score (Micro), F1 Score (Macro)
-- **Models**: LeNet-5, VGGNet, ResNetCNN, EfficientNet-Lite, EfficientNet-B0
+- **Models**: LeNet-5, VGGNet, ResNetCNN, EfficientNet-Lite, EfficientNet-B0, ConvNeXt-Tiny
 
 ### Task 3: Fashion MNIST Classification (`task3_fashion_mnist.ipynb`)
 - **Dataset**: PyTorch built-in FashionMNIST (28x28 grayscale, 10 classes)
 - **Preprocessing**: Merge train/test, then split (train:validation:test = 2:49:49)
 - **Validation**: Repeated holdout 10x
 - **Metrics**: Accuracy, F1 Score (Micro), F1 Score (Macro)
-- **Models**: LeNet-5, VGGNet, ResNetCNN, SEResNet
+- **Models**: LeNet-5, VGGNet, ResNetCNN, SEResNet, ConvNeXt-Small
+
+### Task 3 V2: Fashion MNIST Alternative Split (`task3_fashion_mnist_v2.ipynb`)
+- **Dataset**: Same as Task 3 (PyTorch FashionMNIST)
+- **Preprocessing**:
+  1. Merge train/test (70,000 samples)
+  2. Random shuffle
+  3. Test = 50% (35,000)
+  4. Remaining 50%: Train = 49%, Val = 1%
+- **Actual Split**: Train 24.5% (17,150) : Val 0.5% (350) : Test 50% (35,000)
+- **Validation**: Repeated holdout 5x
+- **Metrics**: Accuracy, F1 Score (Micro)
+- **Models**: LeNet-5, VGGNet, ResNetCNN, SEResNet, ConvNeXt-Small
+
+#### Task 3 Version Comparison
+
+| Version | Train | Val | Test | Repeats | Key Difference |
+|---------|-------|-----|------|---------|----------------|
+| V1 | 2% (1,400) | 49% (34,300) | 49% (34,300) | 10x | Small train, large val |
+| V2 | 24.5% (17,150) | 0.5% (350) | 50% (35,000) | 5x | Large train, small val |
 
 ## Implemented Models
 
@@ -94,6 +114,19 @@ with autocast('cuda', enabled=USE_AMP):
 - Structure: `C(3x3) → MBConv×16 → C(1x1,1280) → GAP → FC`
 - Original paper architecture
 - Mixed 3x3 and 5x5 kernels, expand_ratio=6
+
+### 7. ConvNeXt-Tiny/Small (Liu et al., 2022)
+- Structure: `Stem(4x4,s4) → [ConvNeXtBlock]×{3,3,9,3} → GAP → FC`
+- ConvNeXt Block: `DWConv(7x7) → LayerNorm → PWConv(4×expand) → GELU → PWConv → LayerScale → +Residual`
+- Key features from Vision Transformer (ViT):
+  - Patchify stem: 4×4 conv with stride 4 (like ViT patch embedding)
+  - LayerNorm instead of BatchNorm
+  - GELU activation instead of ReLU
+  - Inverted bottleneck (4× channel expansion)
+  - LayerScale for stable training
+- Depthwise Conv 7×7 for large receptive field
+- Task1/2: ConvNeXt-Tiny (depths=[3,3,9,3], dims=[96,192,384,768])
+- Task3: ConvNeXt-Small (depths=[2,2,6], dims=[64,128,256] for 28×28 input)
 
 ## Evaluation Metrics
 
@@ -159,3 +192,45 @@ font_candidates = ['NanumGothic', 'Noto Sans CJK KR', ...]
 | Scheduler | CosineAnnealingLR | CosineAnnealingLR |
 | Early Stopping | patience=7 | patience=7 |
 | Max Epochs | 30 | 30 |
+
+## Visualization Outputs
+
+Each notebook generates visualization PNG files for easy reporting:
+
+### Task 1 (`task1_`)
+- `task1_metrics_comparison.png` - Accuracy, F1 Micro, F1 Macro bar charts
+- `task1_grouped_metrics.png` - Grouped bar chart comparing all 3 metrics
+- `task1_iteration_f1macro.png` - Per-iteration F1 Macro performance
+
+### Task 2 (`task2_`)
+- `task2_metrics_comparison.png` - Accuracy, F1 Micro, F1 Macro bar charts
+- `task2_grouped_metrics.png` - Grouped bar chart comparing all 3 metrics
+- `task2_fold_f1macro.png` - Per-fold F1 Macro performance
+
+### Task 3 (`task3_`)
+- `task3_metrics_comparison.png` - Accuracy, F1 Micro, F1 Macro bar charts
+- `task3_grouped_metrics.png` - Grouped bar chart comparing all 3 metrics
+- `task3_iteration_f1macro.png` - Per-iteration F1 Macro performance
+
+### Task 3 V2 (`task3_v2_`)
+- `task3_v2_metrics_comparison.png` - Accuracy, F1 Micro bar charts
+- `task3_v2_grouped_metrics.png` - Grouped bar chart comparing 2 metrics
+- `task3_v2_iteration_accuracy.png` - Per-iteration Accuracy performance
+
+## Korean Font Support
+
+All visualization code includes platform-specific Korean font detection:
+
+```python
+import platform
+if platform.system() == 'Darwin':  # macOS
+    plt.rcParams['font.family'] = 'AppleGothic'
+elif platform.system() == 'Windows':
+    plt.rcParams['font.family'] = 'Malgun Gothic'
+else:  # Linux
+    font_list = [f.name for f in fm.fontManager.ttflist
+                 if 'Nanum' in f.name or 'Gothic' in f.name]
+    if font_list:
+        plt.rcParams['font.family'] = font_list[0]
+plt.rcParams['axes.unicode_minus'] = False
+```
